@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row space">
+  <h2>Job Board</h2>
+  <div class="row gap">
+    <a class="btn" href="{{ url_for('calendar_view') }}">Calendar</a>
+    <a class="btn" href="{{ url_for('ro_list') }}">ROs</a>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="card">
+    <h3>Approved</h3>
+    {% for j in approved %}
+      <div class="jobCard">
+        <div class="jobTitle">{{ j.title }}</div>
+        <div class="muted">RO #{{ j.ro_number }} — {{ j.customer_name }}</div>
+        <div class="muted">{{ j.vehicle_text }}</div>
+        <div class="row space" style="margin-top:10px;">
+          <a class="btn tiny" href="{{ url_for('ro_detail', ro_id=j.ro_id) }}">Open RO</a>
+          <form method="post" action="{{ url_for('job_set_status', job_id=j.id) }}">
+            <input type="hidden" name="return_tab" value="estimate">
+            <input type="hidden" name="status" value="work_in_progress">
+            <button class="btn good tiny" type="submit">Start</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3>Work In Progress</h3>
+    {% for j in wip %}
+      <div class="jobCard">
+        <div class="jobTitle">✅ {{ j.title }}</div>
+        <div class="muted">RO #{{ j.ro_number }} — {{ j.customer_name }}</div>
+        <div class="muted">{{ j.vehicle_text }}</div>
+        <div class="row space" style="margin-top:10px;">
+          <a class="btn tiny" href="{{ url_for('ro_detail', ro_id=j.ro_id) }}">Open RO</a>
+          <form method="post" action="{{ url_for('job_set_status', job_id=j.id) }}">
+            <input type="hidden" name="return_tab" value="estimate">
+            <input type="hidden" name="status" value="completed">
+            <button class="btn tiny" type="submit">Mark Done</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3>Completed</h3>
+    {% for j in done %}
+      <div class="jobCard">
+        <div class="jobTitle">✔ {{ j.title }}</div>
+        <div class="muted">RO #{{ j.ro_number }} — {{ j.customer_name }}</div>
+        <div class="muted">{{ j.vehicle_text }}</div>
+        <div class="row space" style="margin-top:10px;">
+          <a class="btn tiny" href="{{ url_for('ro_detail', ro_id=j.ro_id) }}">Open RO</a>
+          <span class="tag">completed</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

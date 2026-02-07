@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% set active = "customers" %}
+{% block content %}
+<div class="headrow">
+  <h2>Customers</h2>
+  <form class="search" method="get" action="{{ url_for('customers') }}">
+    <input name="q" placeholder="Search name / phone / email" value="{{ q or '' }}">
+    <button class="btn secondary" type="submit">Search</button>
+  </form>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+      {% for c in customers %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.phone or "" }}</td>
+        <td>{{ c.email or "" }}</td>
+        <td>{{ c.created_at.strftime("%Y-%m-%d") if c.created_at else "" }}</td>
+        <td><a class="link" href="{{ url_for('customer_detail', customer_id=c.id) }}">View</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No customers found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

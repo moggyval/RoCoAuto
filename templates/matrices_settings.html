@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% set active = "matrices" %}
+{% block content %}
+<h2>Matrices</h2>
+
+<div class="grid2">
+  <div class="card">
+    <div class="cardtitle">Labor Matrix</div>
+    <form method="post" action="{{ url_for('labor_tier_add') }}" class="row">
+      <input name="min_hours" placeholder="Min hrs" required>
+      <input name="max_hours" placeholder="Max hrs (blank=∞)">
+      <input name="rate_per_hour" placeholder="Rate/hr" required>
+      <button class="btn secondary" type="submit">Add</button>
+    </form>
+
+    <table class="table">
+      <thead><tr><th>Min</th><th>Max</th><th>Rate</th><th></th></tr></thead>
+      <tbody>
+        {% for t in labor_tiers %}
+        <tr>
+          <td>{{ t.min_hours }}</td>
+          <td>{{ t.max_hours or "∞" }}</td>
+          <td>${{ t.rate_per_hour }}</td>
+          <td>
+            <form method="post" action="{{ url_for('matrix_tier_delete', tier_id=t.id) }}">
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted">No tiers yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="cardtitle">Parts Matrix</div>
+    <form method="post" action="{{ url_for('parts_tier_add') }}" class="row">
+      <input name="min_cost" placeholder="Min cost" required>
+      <input name="max_cost" placeholder="Max cost (blank=∞)">
+      <input name="multiplier" placeholder="Multiplier (e.g. 1.30)" required>
+      <button class="btn secondary" type="submit">Add</button>
+    </form>
+
+    <table class="table">
+      <thead><tr><th>Min</th><th>Max</th><th>Mult</th><th></th></tr></thead>
+      <tbody>
+        {% for t in parts_tiers %}
+        <tr>
+          <td>${{ t.min_cost }}</td>
+          <td>{{ "$"+t.max_cost|string if t.max_cost else "∞" }}</td>
+          <td>{{ t.multiplier }}</td>
+          <td>
+            <form method="post" action="{{ url_for('matrix_tier_delete', tier_id=t.id) }}">
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted">No tiers yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

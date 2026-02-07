@@ -1,0 +1,13 @@
+
+-- ZIP 1 Structural Migration
+
+ALTER TABLE repair_orders
+ADD COLUMN archived_at DATETIME NULL;
+
+ALTER TABLE customers
+ADD COLUMN archived_at DATETIME NULL;
+
+ALTER TABLE jobs
+ADD COLUMN subtotal DECIMAL(10,2) DEFAULT 0.00,
+ADD COLUMN cost DECIMAL(10,2) DEFAULT 0.00,
+ADD COLUMN profit DECIMAL(10,2) DEFAULT 0.00;

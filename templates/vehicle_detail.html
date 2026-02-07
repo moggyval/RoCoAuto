@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ vehicle.year or "" }} {{ vehicle.make or "" }} {{ vehicle.model or "" }}</h2>
+<p class="muted">Owner: <a href="/customers/{{customer.id}}">{{ customer.name }}</a></p>
+<p class="muted">VIN: {{ vehicle.vin or "-" }} | Odometer: {{ vehicle.odometer_last or "-" }}</p>
+
+<h3>Repair Orders</h3>
+<table class="table">
+  <tr><th>RO#</th><th>Status</th><th>Opened</th></tr>
+  {% for ro in ros %}
+  <tr>
+    <td><a href="/ros/{{ro.id}}">{{ ro.ro_number }}</a></td>
+    <td>{{ ro.status }}</td>
+    <td>{{ ro.opened_at }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

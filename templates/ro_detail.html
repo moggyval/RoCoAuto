@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+{% set active = "ros" %}
+{% block content %}
+<div class="headrow">
+  <div>
+    <h2>RO #{{ ro.ro_number }} {% if ro.deleted_at %}<span class="pill danger">archived</span>{% endif %}</h2>
+    <div class="muted">
+      {{ customer.name }} •
+      {{ (vehicle.year or '') }} {{ (vehicle.make or '') }} {{ (vehicle.model or '') }} {{ (vehicle.engine or '') }}
+      {% if vehicle.vin %} • VIN {{ vehicle.vin }}{% endif %}
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('ro_change_status', ro_id=ro.id) }}" class="row">
+    <input type="hidden" name="return_tab" value="{{ active_tab }}">
+    <label class="muted">RO status</label>
+    <select name="status">
+      {% for s in ['open','estimate_sent','work_in_progress','closed','canceled'] %}
+        <option value="{{ s }}" {% if ro.status==s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn secondary" type="submit">Update</button>
+  </form>
+  <form method="post" action="{{ url_for('ro_delete', ro_id=ro.id) }}">
+    <button class="btn danger" type="submit">Archive RO</button>
+  </form>
+</div>
+
+<div class="tabs">
+  <a class="{{ 'on' if active_tab=='estimate' else '' }}" href="{{ url_for('ro_detail', ro_id=ro.id, tab='estimate') }}">Estimate</a>
+  <a class="{{ 'on' if active_tab=='invoice' else '' }}" href="{{ url_for('ro_detail', ro_id=ro.id, tab='invoice') }}">Invoice</a>
+  <a class="{{ 'on' if active_tab=='wip' else '' }}" href="{{ url_for('ro_detail', ro_id=ro.id, tab='wip') }}">Work in progress</a>
+  <a class="{{ 'on' if active_tab=='activity' else '' }}" href="{{ url_for('ro_detail', ro_id=ro.id, tab='activity') }}">Activity</a>
+</div>
+
+{% if active_tab in ['estimate','invoice'] %}
+  {% set doc = estimate if active_tab=='estimate' else invoice %}
+  {% set items = est_items if active_tab=='estimate' else inv_items %}
+  {% set profit = est_profit if active_tab=='estimate' else inv_profit %}
+  {% set job_totals = est_job_totals if active_tab=='estimate' else inv_job_totals %}
+  {% set items_by_job = est_items_by_job if active_tab=='estimate' else inv_items_by_job %}
+  {% set unassigned_items = est_unassigned_items if active_tab=='estimate' else inv_unassigned_items %}
+  {% set share_url = est_share_url if active_tab=='estimate' else inv_share_url %}
+
+  <div class="grid2">
+    <div class="card">
+      <div class="cardtitle">
+        {{ doc.doc_type|capitalize }} • <span class="pill">{{ doc.status }}</span>
+        {% if doc.locked_at %}<span class="pill danger">locked</span>{% endif %}
+      </div>
+
+      <div class="rowgap">
+        {% if doc.doc_type=='estimate' %}
+          <form method="post" action="{{ url_for('lock_document', doc_id=doc.id) }}">
+            <button class="btn secondary" type="submit">Send / Lock Estimate</button>
+          </form>
+          <button class="btn" type="button" data-share-doc="{{ doc.id }}">Share estimate</button>
+          <form method="post" action="{{ url_for('approve_estimate', doc_id=doc.id) }}">
+            <button class="btn" type="submit">Approve Estimate</button>
+          </form>
+          <form method="post" action="{{ url_for('decline_estimate', doc_id=doc.id) }}">
+            <button class="btn danger" type="submit">Decline</button>
+          </form>
+        {% else %}
+          <a class="btn secondary" href="{{ url_for('invoice_pdf', ro_id=ro.id) }}" target="_blank">View PDF</a>
+          <button class="btn" type="button" data-share-doc="{{ doc.id }}">Share invoice</button>
+          <form method="post" action="{{ url_for('mark_invoice_paid', doc_id=doc.id) }}">
+            <button class="btn" type="submit">Mark Paid</button>
+          </form>
+          <form method="post" action="{{ url_for('lock_document', doc_id=doc.id) }}">
+            <button class="btn secondary" type="submit">Lock Invoice</button>
+          </form>
+        {% endif %}
+      </div>
+
+      <div class="share-link" style="margin-top:12px;">
+        <div class="muted small">Share link</div>
+        <input id="share-link-input" value="{{ share_url }}" readonly>
+        <div class="muted small" id="share-status" style="display:none;">Link copied.</div>
+      </div>
+
+      <div class="totals">
+        <div><span class="muted">Subtotal</span><span>${{ doc.subtotal }}</span></div>
+        <div><span class="muted">Tax</span><span>${{ doc.tax }}</span></div>
+        <div class="total"><span>Total</span><span>${{ doc.total }}</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardtitle">Add job</div>
+      <form method="post" action="{{ url_for('job_add', ro_id=ro.id) }}" class="row">
+        <input type="hidden" name="return_tab" value="{{ active_tab }}">
+        <input name="title" placeholder="New job name">
+        <button class="btn secondary" type="submit">Add Job</button>
+      </form>
+      <div class="muted small padtop">Jobs show below with their line items.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cardtitle">Jobs & Line items</div>
+    {% for j in jobs %}
+      <div class="jobcard">
+        <div class="jobhead">
+          <form method="post" action="{{ url_for('job_edit', job_id=j.id) }}" class="row">
+            <input type="hidden" name="return_tab" value="{{ active_tab }}">
+            <input name="title" value="{{ j.title }}">
+            <button class="btn secondary" type="submit">Save</button>
+          </form>
+          <div class="rowgap">
+            <span class="muted small">Total: ${{ job_totals.get(j.id, '0.00') }}</span>
+            <form method="post" action="{{ url_for('job_set_status', job_id=j.id) }}" class="row">
+              <input type="hidden" name="return_tab" value="{{ active_tab }}">
+              <select name="status">
+                {% for s in ['pending','approved','work_in_progress','completed','declined'] %}
+                  <option value="{{ s }}" {% if j.status==s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn secondary" type="submit">Set</button>
+            </form>
+            <form method="post" action="{{ url_for('job_delete', job_id=j.id) }}">
+              <input type="hidden" name="return_tab" value="{{ active_tab }}">
+              <button class="btn danger" type="submit">Delete job</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="jobitems">
+          {% set items_for_job = items_by_job.get(j.id, []) %}
+          {% for li in items_for_job %}
+            {% set amt = ((li.qty or 0) * (li.unit_price or 0)) %}
+            <div class="lineitem">
+              <div class="lineitem-head">
+                <span class="pill">{{ li.item_type }}</span>
+                <span class="muted small">
+                  Total:
+                  {% if li.item_type=='discount' %}-${{ (amt|abs) }}{% else %}${{ amt }}{% endif %}
+                </span>
+              </div>
+              <div class="lineitem-summary">
+                <div>
+                  <div class="lineitem-desc">{{ li.description }}</div>
+                  <div class="muted small">Qty: {{ li.qty }} • Unit: ${{ li.unit_price }}</div>
+                </div>
+                <button class="btn secondary lineitem-toggle" type="button">Edit</button>
+              </div>
+              <div class="lineitem-form-wrap">
+                <form method="post" action="{{ url_for('edit_item', item_id=li.id) }}" class="lineitem-form">
+                  <input type="hidden" name="return_tab" value="{{ active_tab }}">
+                  <input type="hidden" name="job_id" value="{{ li.job_id or '' }}">
+                  <div class="grid3">
+                    <div>
+                      <label>Description</label>
+                      <input name="description" value="{{ li.description }}">
+                    </div>
+                    <div>
+                      <label>Qty</label>
+                      <input name="qty" value="{{ li.qty }}">
+                    </div>
+                    <div>
+                      <label>Unit price</label>
+                      <input name="unit_price" value="{{ li.unit_price }}">
+                    </div>
+                  </div>
+                  <div class="grid3">
+                    <div>
+                      <label>Taxable</label>
+                      <input type="checkbox" name="taxable" {% if li.taxable %}checked{% endif %}>
+                    </div>
+                    <div>
+                      {% if li.item_type=='labor' %}
+                        <label>Hours</label>
+                        <input name="labor_hours" value="{{ li.labor_hours or '' }}">
+                      {% else %}
+                        <label>Cost</label>
+                        <input name="cost" value="{{ li.cost or '' }}">
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="rowgap">
+                    <button class="btn secondary" type="submit">Save item</button>
+                  </div>
+                </form>
+              </div>
+              <form method="post" action="{{ url_for('delete_item', item_id=li.id) }}" class="lineitem-delete">
+                <input type="hidden" name="return_tab" value="{{ active_tab }}">
+                <button class="btn danger" type="submit">Delete item</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="muted small">No line items in this job yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <div class="muted">No jobs yet.</div>
+    {% endfor %}
+
+    {% if unassigned_items %}
+      <div class="jobcard">
+        <div class="jobhead">
+          <div>
+            <div class="jobtitle">Unassigned items</div>
+            <div class="muted small">Total: ${{ job_totals.get('__none__', '0.00') }}</div>
+          </div>
+        </div>
+        <div class="jobitems">
+          {% for li in unassigned_items %}
+            {% set amt = ((li.qty or 0) * (li.unit_price or 0)) %}
+            <div class="lineitem">
+              <div class="lineitem-head">
+                <span class="pill">{{ li.item_type }}</span>
+                <span class="muted small">
+                  Total:
+                  {% if li.item_type=='discount' %}-${{ (amt|abs) }}{% else %}${{ amt }}{% endif %}
+                </span>
+              </div>
+              <div class="lineitem-summary">
+                <div>
+                  <div class="lineitem-desc">{{ li.description }}</div>
+                  <div class="muted small">Qty: {{ li.qty }} • Unit: ${{ li.unit_price }}</div>
+                </div>
+                <button class="btn secondary lineitem-toggle" type="button">Edit</button>
+              </div>
+              <div class="lineitem-form-wrap">
+                <form method="post" action="{{ url_for('edit_item', item_id=li.id) }}" class="lineitem-form">
+                  <input type="hidden" name="return_tab" value="{{ active_tab }}">
+                  <input type="hidden" name="job_id" value="{{ li.job_id or '' }}">
+                  <div class="grid3">
+                    <div>
+                      <label>Description</label>
+                      <input name="description" value="{{ li.description }}">
+                    </div>
+                    <div>
+                      <label>Qty</label>
+                      <input name="qty" value="{{ li.qty }}">
+                    </div>
+                    <div>
+                      <label>Unit price</label>
+                      <input name="unit_price" value="{{ li.unit_price }}">
+                    </div>
+                  </div>
+                  <div class="grid3">
+                    <div>
+                      <label>Taxable</label>
+                      <input type="checkbox" name="taxable" {% if li.taxable %}checked{% endif %}>
+                    </div>
+                    <div>
+                      {% if li.item_type=='labor' %}
+                        <label>Hours</label>
+                        <input name="labor_hours" value="{{ li.labor_hours or '' }}">
+                      {% else %}
+                        <label>Cost</label>
+                        <input name="cost" value="{{ li.cost or '' }}">
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="rowgap">
+                    <button class="btn secondary" type="submit">Save item</button>
+                  </div>
+                </form>
+              </div>
+              <form method="post" action="{{ url_for('delete_item', item_id=li.id) }}" class="lineitem-delete">
+                <input type="hidden" name="return_tab" value="{{ active_tab }}">
+                <button class="btn danger" type="submit">Delete item</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="cardtitle">Add line item</div>
+    <form method="post" action="{{ url_for('add_line_item', doc_id=doc.id) }}" class="form">
+      <input type="hidden" name="return_tab" value="{{ active_tab }}">
+      <div class="grid3">
+        <div>
+          <label>Type</label>
+          <select name="item_type" id="item_type" class="select">
+            <option value="labor">Labor</option>
+            <option value="part">Part</option>
+            <option value="fee">Fee</option>
+            <option value="discount">Discount</option>
+          </select>
+        </div>
+        <div>
+          <label>Job</label>
+          <select name="job_id" class="select">
+            <option value="">(no job)</option>
+            {% for j in jobs %}
+              <option value="{{ j.id }}">{{ j.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="qty_field">
+          <label>Qty</label>
+          <input name="qty" id="qty_input" placeholder="1">
+        </div>
+      </div>
+
+      <label>Description</label>
+      <input name="description" required>
+
+      <div id="labor_fields" class="grid3">
+        <div>
+          <label>Hours</label>
+          <input name="labor_hours" placeholder="e.g. 1.5">
+        </div>
+        <div>
+          <label>Override rate (optional)</label>
+          <input name="labor_rate" placeholder="leave blank = matrix">
+        </div>
+        <div class="muted small padtop">Labor is non-taxable</div>
+      </div>
+
+      <div id="part_fields" class="grid3" style="display:none;">
+        <div>
+          <label>Cost</label>
+          <input name="part_cost" placeholder="e.g. 100">
+        </div>
+        <div>
+          <label>Price override (optional)</label>
+          <input name="part_price" placeholder="leave blank = matrix">
+        </div>
+        <div>
+          <label>Taxable</label>
+          <input type="checkbox" name="taxable" checked>
+        </div>
+      </div>
+
+      <div id="fee_fields" class="grid3" style="display:none;">
+        <div>
+          <label>Price</label>
+          <input name="fee_price" placeholder="e.g. 25">
+        </div>
+        <div>
+          <label>Cost (optional)</label>
+          <input name="fee_cost" placeholder="optional">
+        </div>
+        <div>
+          <label>Taxable</label>
+          <input type="checkbox" name="taxable">
+        </div>
+      </div>
+
+      <div id="discount_fields" class="grid3" style="display:none;">
+        <div>
+          <label>Amount</label>
+          <input name="discount_amount" placeholder="e.g. 10">
+        </div>
+        <div>
+          <label>Cost (optional)</label>
+          <input name="discount_cost" placeholder="optional">
+        </div>
+        <div class="muted small padtop">Discounts are non-taxable</div>
+      </div>
+
+      <button class="btn" type="submit">Add item</button>
+    </form>
+  </div>
+
+  <div class="stickybar">
+    <div class="stickymeta">
+      <div><span class="muted">Revenue</span><strong>${{ profit.revenue }}</strong></div>
+      <div><span class="muted">Cost</span><strong>${{ profit.cost }}</strong></div>
+      <div><span class="muted">Gross Profit</span><strong>${{ profit.gross_profit }}</strong></div>
+      <div><span class="muted">Margin</span><strong>{{ profit.margin_pct }}%</strong></div>
+    </div>
+  </div>
+
+  <script>
+    const typeSel = document.getElementById("item_type");
+    const qtyField = document.getElementById("qty_field");
+    const qtyInput = document.getElementById("qty_input");
+    const blocks = {
+      labor: document.getElementById("labor_fields"),
+      part: document.getElementById("part_fields"),
+      fee: document.getElementById("fee_fields"),
+      discount: document.getElementById("discount_fields"),
+    };
+    function showBlock(t){
+      Object.keys(blocks).forEach(k=>blocks[k].style.display = (k===t) ? "grid" : "none");
+      if (qtyField && qtyInput) {
+        const isLabor = t === "labor";
+        qtyField.style.display = isLabor ? "none" : "block";
+        qtyInput.disabled = isLabor;
+        if (isLabor) {
+          qtyInput.value = "";
+        }
+      }
+    }
+    if (typeSel) {
+      typeSel.addEventListener("change", ()=>showBlock(typeSel.value));
+      showBlock(typeSel.value);
+    }
+
+    document.querySelectorAll(".lineitem-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const wrap = btn.closest(".lineitem")?.querySelector(".lineitem-form-wrap");
+        if (!wrap) {
+          return;
+        }
+        wrap.classList.toggle("is-open");
+        btn.textContent = wrap.classList.contains("is-open") ? "Hide" : "Edit";
+      });
+    });
+
+    document.querySelectorAll("[data-share-doc]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const docId = btn.getAttribute("data-share-doc");
+        if (!docId) {
+          return;
+        }
+        try {
+          const res = await fetch(`/docs/${docId}/share`, { method: "POST" });
+          if (!res.ok) {
+            throw new Error("Share failed");
+          }
+          const data = await res.json();
+          const input = document.getElementById("share-link-input");
+          if (input && data.url) {
+            input.value = data.url;
+          }
+          if (data.url && navigator.clipboard) {
+            await navigator.clipboard.writeText(data.url);
+          } else if (data.url) {
+            window.prompt("Copy link:", data.url);
+          }
+          const status = document.getElementById("share-status");
+          if (status) {
+            status.style.display = "block";
+            setTimeout(() => (status.style.display = "none"), 2000);
+          }
+        } catch (err) {
+          window.alert("Unable to share. Please try again.");
+        }
+      });
+    });
+  </script>
+
+{% elif active_tab == 'activity' %}
+  <div class="card">
+    <div class="cardtitle">Activity</div>
+    <ul class="list">
+      {% for e in events %}
+        <li>
+          <strong>{{ e.event_type }}</strong>
+          <span class="muted">• {{ e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else "" }}</span>
+          {% if e.old_value or e.new_value %}
+            <div class="muted small">{{ e.old_value or "" }} → {{ e.new_value or "" }}</div>
+          {% endif %}
+        </li>
+      {% else %}
+        <li class="muted">No activity yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% elif active_tab == 'wip' %}
+  <div class="card">
+    <div class="cardtitle">Work in progress checklist</div>
+    <form method="post" action="{{ url_for('tech_add') }}" class="row">
+      <input type="hidden" name="ro_id" value="{{ ro.id }}">
+      <input name="name" placeholder="Add technician name">
+      <button class="btn secondary" type="submit">Add technician</button>
+    </form>
+    <div class="muted small padtop">Check off jobs as they are completed. Labor hours are added to the selected technician.</div>
+    <div class="joblist">
+      {% for j in jobs %}
+        <form method="post" action="{{ url_for('job_complete', job_id=j.id) }}" class="jobcheck">
+          <input type="hidden" name="return_tab" value="wip">
+          <label class="jobcheck-label">
+            <input type="checkbox" {% if j.status == 'completed' %}checked{% endif %} disabled>
+            <span>{{ j.title }}</span>
+          </label>
+          <div class="muted small">Labor hours: {{ job_labor_hours.get(j.id, '0.00') }}</div>
+          <select name="tech_id" class="select">
+            <option value="">Assign technician</option>
+            {% for tech in technicians %}
+              <option value="{{ tech.id }}" {% if j.tech_id == tech.id %}selected{% endif %}>{{ tech.name }} ({{ tech.total_hours }}h)</option>
+            {% endfor %}
+          </select>
+          <div class="rowgap">
+            {% if j.status == 'completed' %}
+              <span class="pill ok">Completed</span>
+            {% else %}
+              <button class="btn" type="submit">Mark completed</button>
+            {% endif %}
+          </div>
+        </form>
+      {% else %}
+        <div class="muted">No jobs yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

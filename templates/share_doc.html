@@ -1,0 +1,55 @@
+{% set t = (doc.doc_type|capitalize) ~ " Share" %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">{{ t }}</div>
+    <div class="nav">
+      <a href="{{ pdf_url }}" class="pilllink" target="_blank">Download PDF</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="row space">
+        <div>
+          <h2>{{ doc.doc_type|capitalize }} (v{{ doc.version }})</h2>
+          <div class="muted">Status: {{ doc.status }}</div>
+          <div class="muted">RO #{{ ro.ro_number }} — {{ customer.name }} — {{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }} {{ vehicle.engine }}</div>
+        </div>
+        <div class="right">
+          <div class="big">${{ doc.total }}</div>
+          <div class="muted">Total</div>
+        </div>
+      </div>
+
+      <table class="table" style="margin-top:14px;">
+        <tr><th>Description</th><th class="right">Qty</th><th class="right">Unit</th><th class="right">Amount</th></tr>
+        {% for it in items %}
+          <tr>
+            <td>
+              <div>{{ it.description }}</div>
+              <div class="muted">{{ it.item_type }}{% if it.labor_hours %} • {{ it.labor_hours }}h{% endif %}</div>
+            </td>
+            <td class="right">{{ it.qty }}</td>
+            <td class="right">${{ it.unit_price }}</td>
+            <td class="right">${{ (it.qty * it.unit_price) | round(2) }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+
+      <div class="totals">
+        <div><span class="muted">Subtotal</span><div class="big">${{ doc.subtotal }}</div></div>
+        <div><span class="muted">Tax</span><div class="big">${{ doc.tax }}</div></div>
+        <div><span class="muted">Total</span><div class="big">${{ doc.total }}</div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

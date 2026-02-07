@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% set active = "ros" %}
+{% block content %}
+<h2>New Repair Order</h2>
+
+<div class="card">
+  <form method="post" action="{{ url_for('ro_new_create') }}" id="roForm" class="form">
+    <input type="hidden" name="existing_customer_id" id="existing_customer_id">
+    <input type="hidden" name="existing_vehicle_id" id="existing_vehicle_id">
+
+    <div class="grid2">
+      <div>
+        <h3>Customer</h3>
+        <label>Search existing</label>
+        <input id="customer_search" placeholder="Type name / phone / email (2+ chars)">
+        <div id="customer_results" class="dropdown"></div>
+
+        <label>Name</label>
+        <input name="customer_name" id="customer_name" required>
+
+        <div class="grid2">
+          <div>
+            <label>Phone</label>
+            <input name="customer_phone" id="customer_phone">
+          </div>
+          <div>
+            <label>Email</label>
+            <input name="customer_email" id="customer_email">
+          </div>
+        </div>
+
+        <label>Address</label>
+        <input name="address1" id="address1" placeholder="Street">
+        <input name="address2" id="address2" placeholder="Apt / Suite (optional)">
+
+        <div class="grid3">
+          <div><label>City</label><input name="city" id="city"></div>
+          <div><label>State</label><input name="state" id="state" maxlength="2"></div>
+          <div><label>ZIP</label><input name="postal_code" id="postal_code"></div>
+        </div>
+
+        <label>Source</label>
+        <input name="source" id="source" placeholder="Facebook, referral, Google, etc.">
+      </div>
+
+      <div>
+        <h3>Vehicle</h3>
+
+        <label>Existing vehicles</label>
+        <select id="vehicle_pick" class="select">
+          <option value="">— Select a vehicle —</option>
+        </select>
+
+        <div class="grid2">
+          <div>
+            <label>Year</label>
+            <input name="year" id="year" placeholder="e.g. 2018">
+          </div>
+          <div>
+            <label>VIN</label>
+            <input name="vin" id="vin">
+          </div>
+        </div>
+
+        <label>Make</label>
+        <select name="make" id="make" class="select">
+          <option value="">— Select make —</option>
+        </select>
+
+        <label>Model</label>
+        <select name="model" id="model" class="select">
+          <option value="">— Select model —</option>
+        </select>
+
+        <label>Engine</label>
+        <select name="engine" id="engine" class="select">
+          <option value="">— Select engine —</option>
+          {% for e in engine_presets %}
+            <option value="{{ e }}">{{ e }}</option>
+          {% endfor %}
+        </select>
+
+        <label>Odometer</label>
+        <input name="odometer_last" id="odometer_last" placeholder="miles">
+      </div>
+    </div>
+
+    <h3>Concern</h3>
+    <textarea name="concern" rows="3" placeholder="Customer concern / complaint"></textarea>
+
+    <button class="btn" type="submit">Create RO</button>
+  </form>
+</div>
+
+<script>
+const $ = (id)=>document.getElementById(id);
+
+let custTimer = null;
+
+$("customer_search").addEventListener("input", ()=>{
+  clearTimeout(custTimer);
+  const q = $("customer_search").value.trim();
+  if (q.length < 2){
+    $("customer_results").innerHTML = "";
+    $("customer_results").style.display = "none";
+    return;
+  }
+  custTimer = setTimeout(async ()=>{
+    const res = await fetch(`/api/customers/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const box = $("customer_results");
+    box.innerHTML = "";
+    (data.results||[]).forEach(c=>{
+      const div = document.createElement("div");
+      div.className = "dropitem";
+      div.textContent = `${c.name}${c.phone? " • "+c.phone:""}${c.email? " • "+c.email:""}`;
+      div.onclick = ()=>selectCustomer(c);
+      box.appendChild(div);
+    });
+    box.style.display = (data.results||[]).length ? "block" : "none";
+  }, 250);
+});
+
+async function selectCustomer(c){
+  $("existing_customer_id").value = c.id;
+  $("customer_results").innerHTML = "";
+  $("customer_results").style.display = "none";
+  $("customer_name").value = c.name || "";
+  $("customer_phone").value = c.phone || "";
+  $("customer_email").value = c.email || "";
+  $("address1").value = c.address1 || "";
+  $("address2").value = c.address2 || "";
+  $("city").value = c.city || "";
+  $("state").value = c.state || "";
+  $("postal_code").value = c.postal_code || "";
+
+  // load vehicles
+  const res = await fetch(`/api/customers/${c.id}/vehicles`);
+  const data = await res.json();
+  const pick = $("vehicle_pick");
+  pick.innerHTML = `<option value="">— Select a vehicle —</option>`;
+  (data.results||[]).forEach(v=>{
+    const opt = document.createElement("option");
+    opt.value = v.id;
+    opt.textContent = v.label;
+    opt.dataset.year = v.year || "";
+    opt.dataset.make = v.make || "";
+    opt.dataset.model = v.model || "";
+    opt.dataset.engine = v.engine || "";
+    opt.dataset.vin = v.vin || "";
+    opt.dataset.odo = v.odometer_last || "";
+    pick.appendChild(opt);
+  });
+}
+
+$("vehicle_pick").addEventListener("change", async ()=>{
+  const opt = $("vehicle_pick").selectedOptions[0];
+  if (!opt || !opt.value){
+    $("existing_vehicle_id").value = "";
+    return;
+  }
+  $("existing_vehicle_id").value = opt.value;
+  $("year").value = opt.dataset.year || "";
+  $("vin").value = opt.dataset.vin || "";
+  $("odometer_last").value = opt.dataset.odo || "";
+  $("engine").value = opt.dataset.engine || "";
+
+  // make/model selects: set value after loading
+  await loadMakes();
+  $("make").value = opt.dataset.make || "";
+  await loadModels();
+  $("model").value = opt.dataset.model || "";
+});
+
+async function loadMakes(){
+  const year = $("year").value.trim();
+  if (!year) return;
+  const res = await fetch(`/api/vehicle/makes?year=${encodeURIComponent(year)}`);
+  const data = await res.json();
+  const make = $("make");
+  make.innerHTML = `<option value="">— Select make —</option>`;
+  (data.results||[]).forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = m; opt.textContent = m;
+    make.appendChild(opt);
+  });
+}
+
+async function loadModels(){
+  const year = $("year").value.trim();
+  const make = $("make").value.trim();
+  if (!year || !make) return;
+  const res = await fetch(`/api/vehicle/models?year=${encodeURIComponent(year)}&make=${encodeURIComponent(make)}`);
+  const data = await res.json();
+  const model = $("model");
+  model.innerHTML = `<option value="">— Select model —</option>`;
+  (data.results||[]).forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = m; opt.textContent = m;
+    model.appendChild(opt);
+  });
+}
+
+$("year").addEventListener("change", async ()=>{
+  await loadMakes();
+  $("model").innerHTML = `<option value="">— Select model —</option>`;
+});
+
+$("make").addEventListener("change", loadModels);
+</script>
+{% endblock %}

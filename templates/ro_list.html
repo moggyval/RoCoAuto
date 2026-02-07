@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% set active = "ros" %}
+{% block content %}
+<div class="headrow">
+  <h2>Repair Orders</h2>
+  <div class="rowgap">
+    <a class="btn" href="{{ url_for('ro_new') }}">+ New RO</a>
+  </div>
+</div>
+
+<div class="card">
+  <form class="filters" method="get" action="{{ url_for('ro_list') }}">
+    <label>Status</label>
+    <select name="status" onchange="this.form.submit()">
+      {% for s in ['all','open','estimate_sent','work_in_progress','closed','canceled'] %}
+        <option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button class="btn secondary" type="submit">Apply</button></noscript>
+  </form>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th><th>Status</th><th>Customer</th><th>Vehicle</th><th>Opened</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ro in ros %}
+      <tr>
+        <td>#{{ ro.ro_number }}</td>
+        <td><span class="pill">{{ ro.status }}</span></td>
+        <td>{{ ro.customer.name if ro.customer is defined and ro.customer else ro.customer_id }}</td>
+        <td>
+          {% if ro.vehicle is defined and ro.vehicle %}
+            {{ ro.vehicle.year }} {{ ro.vehicle.make }} {{ ro.vehicle.model }} {{ ro.vehicle.engine }}
+          {% else %}
+            {{ ro.vehicle_id }}
+          {% endif %}
+        </td>
+        <td>{{ ro.opened_at.strftime("%Y-%m-%d") if ro.opened_at else "" }}</td>
+        <td><a class="link" href="{{ url_for('ro_detail', ro_id=ro.id, tab='estimate') }}">Open</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">No ROs.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

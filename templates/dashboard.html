@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block content %}
+<div class="dashboard-layout">
+  <div class="card">
+    <div class="cardtitle">Quick actions</div>
+    <div class="sidebar-tabs">
+      <a class="tablink" href="{{ url_for('ro_new') }}">+ New RO</a>
+      <a class="tablink" href="{{ url_for('ro_list') }}">View ROs</a>
+      <a class="tablink" href="{{ url_for('customers') }}">Customers</a>
+    </div>
+  </div>
+
+  <div>
+    <div class="grid3">
+      <div class="card">
+        <div class="cardtitle">Month to date revenue (paid invoices)</div>
+        <div class="big">${{ mtd_revenue }}</div>
+      </div>
+      <div class="card">
+        <div class="cardtitle">ARO</div>
+        <div class="big">${{ aro }}</div>
+      </div>
+      <div class="card">
+        <div class="cardtitle">Close ratio</div>
+        <div class="big">{{ close_ratio }}%</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardtitle">Repair orders</div>
+      <div class="tabs">
+        <a class="{{ 'on' if status_filter=='open' else '' }}" href="{{ url_for('dashboard', status='open') }}">Open</a>
+        <a class="{{ 'on' if status_filter=='estimate_sent' else '' }}" href="{{ url_for('dashboard', status='estimate_sent') }}">Estimate sent</a>
+        <a class="{{ 'on' if status_filter=='work_in_progress' else '' }}" href="{{ url_for('dashboard', status='work_in_progress') }}">Work in progress</a>
+        <a class="{{ 'on' if status_filter=='completed' else '' }}" href="{{ url_for('dashboard', status='completed') }}">Completed</a>
+      </div>
+      <div class="ro-grid">
+        {% for ro in ros %}
+          {% set cust = cust_map.get(ro.customer_id|string) %}
+          {% set veh = veh_map.get(ro.vehicle_id|string) %}
+          {% set est = est_map.get(ro.id) %}
+          {% set inv = inv_map.get(ro.id) %}
+          <div class="ro-card">
+            <div class="ro-card-top">
+              <div>
+                <div class="ro-card-title">RO #{{ ro.ro_number }}</div>
+                <div class="muted small">{{ cust.name if cust else "Unknown customer" }}</div>
+                <div class="muted small">
+                  {% if veh %}
+                    {{ veh.year }} {{ veh.make }} {{ veh.model }} {{ veh.engine }}
+                  {% else %}
+                    Unknown vehicle
+                  {% endif %}
+                </div>
+              </div>
+              <div class="right">
+                <span class="pill">{{ ro.status.replace('_', ' ') }}</span>
+                {% if inv and inv.status == 'paid' %}
+                  <span class="pill ok">Paid</span>
+                {% endif %}
+              </div>
+            </div>
+            <div class="ro-steps">
+              <span class="step {{ 'on' if ro.status in ['estimate_sent','work_in_progress','closed'] else '' }}">Estimate</span>
+              <span class="step {{ 'on' if ro.status in ['work_in_progress','closed'] else '' }}">WIP</span>
+              <span class="step {{ 'on' if ro.status == 'closed' else '' }}">Completed</span>
+            </div>
+            <div class="ro-card-bottom">
+              <div class="muted small">Total</div>
+              <div class="big">${{ inv.total if inv else est.total if est else '0.00' }}</div>
+              <a class="link" href="{{ url_for('ro_detail', ro_id=ro.id, tab='estimate') }}">Open RO</a>
+            </div>
+          </div>
+        {% else %}
+          <div class="muted">No repair orders in this status.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

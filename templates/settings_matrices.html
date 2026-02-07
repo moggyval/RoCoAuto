@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row space">
+  <h2>Labor & Parts Matrices</h2>
+  <div class="muted">Labor: hours → $/hr. Parts: cost → multiplier.</div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h3>Labor Matrix (hours → rate/hr)</h3>
+
+    <table class="table small">
+      <tr><th>Min hrs</th><th>Max hrs</th><th>Rate/hr</th><th></th></tr>
+      {% for t in labor %}
+        <tr>
+          <td>{{ t.min_hours }}</td>
+          <td>{{ t.max_hours if t.max_hours is not none else "∞" }}</td>
+          <td>${{ t.rate_per_hour }}</td>
+          <td>
+            <form method="post" action="{{ url_for('matrices_delete_tier', tier_id=t.id) }}">
+              <button class="btn tiny" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <h4>Add tier</h4>
+    <form method="post" action="{{ url_for('matrices_labor_add') }}" class="row wrap">
+      <input name="min_hours" placeholder="Min hrs (ex: 0)" required>
+      <input name="max_hours" placeholder="Max hrs (blank = ∞)">
+      <input name="rate_per_hour" placeholder="Rate/hr (ex: 115)" required>
+      <button class="btn" type="submit">Add</button>
+    </form>
+
+    <div class="muted" style="margin-top:8px;">
+      Tip: Use non-overlapping tiers. Example: 0–1, 1.01–3, 3.01–∞
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Parts Matrix (cost → multiplier)</h3>
+
+    <table class="table small">
+      <tr><th>Min cost</th><th>Max cost</th><th>Multiplier</th><th></th></tr>
+      {% for t in parts %}
+        <tr>
+          <td>${{ t.min_cost }}</td>
+          <td>{{ ('$' ~ t.max_cost) if t.max_cost is not none else "∞" }}</td>
+          <td>x{{ t.multiplier }}</td>
+          <td>
+            <form method="post" action="{{ url_for('matrices_delete_tier', tier_id=t.id) }}">
+              <button class="btn tiny" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <h4>Add tier</h4>
+    <form method="post" action="{{ url_for('matrices_parts_add') }}" class="row wrap">
+      <input name="min_cost" placeholder="Min cost (ex: 0)" required>
+      <input name="max_cost" placeholder="Max cost (blank = ∞)">
+      <input name="multiplier" placeholder="Multiplier (ex: 1.35)" required>
+      <button class="btn" type="submit">Add</button>
+    </form>
+
+    <div class="muted" style="margin-top:8px;">
+      Parts price = cost × multiplier (per-unit cost).
+    </div>
+  </div>
+</div>
+{% endblock %}

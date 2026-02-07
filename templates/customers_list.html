@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row space">
+  <h2>Customers</h2>
+  <form class="row gap" method="get" action="{{ url_for('customers_list') }}">
+    <input name="q" placeholder="Search name, phone, email" value="{{ q or '' }}" style="min-width:320px;">
+    <button class="btn" type="submit">Search</button>
+  </form>
+</div>
+
+<div class="card">
+  <table class="table">
+    <tr><th>Name</th><th>Phone</th><th>Email</th><th>City</th><th>Created</th></tr>
+    {% for c in customers %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td class="muted">{{ c.phone or "" }}</td>
+        <td class="muted">{{ c.email or "" }}</td>
+        <td class="muted">{{ c.city or "" }}, {{ c.state or "" }}</td>
+        <td class="muted">{{ c.created_at }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

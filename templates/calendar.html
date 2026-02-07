@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row space">
+  <h2>Calendar</h2>
+  <div class="row gap">
+    <a class="btn" href="{{ url_for('ro_new') }}">+ New RO</a>
+  </div>
+</div>
+
+<div class="card">
+  <div id="calendar"></div>
+</div>
+
+<div class="modal" id="apptModal">
+  <div class="modalCard">
+    <div class="row space">
+      <h3 id="apptTitle">Appointment</h3>
+      <button class="btn tiny" type="button" onclick="closeAppt()">X</button>
+    </div>
+
+    <form method="post" id="apptForm" action="{{ url_for('appointment_create') }}">
+      <input type="hidden" name="appt_id" id="appt_id">
+      <div class="grid2">
+        <div>
+          <label>RO</label>
+          <select name="ro_id" id="ro_id">
+            {% for r in ro_pick %}
+              <option value="{{ r.id }}">#{{ r.ro_number }} — {{ r.customer_name }} ({{ r.vehicle_text }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Title</label>
+          <input name="title" id="title" placeholder="Diag, brakes, starter..." required>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <label>Start</label>
+          <input name="start_at" id="start_at" type="datetime-local" required>
+        </div>
+        <div>
+          <label>End</label>
+          <input name="end_at" id="end_at" type="datetime-local" required>
+        </div>
+      </div>
+
+      <label>Status</label>
+      <select name="status" id="status">
+        <option value="scheduled">scheduled</option>
+        <option value="in_progress">in_progress</option>
+        <option value="done">done</option>
+        <option value="canceled">canceled</option>
+      </select>
+
+      <label>Notes</label>
+      <textarea name="notes" id="notes" rows="3"></textarea>
+
+      <div class="row gap" style="margin-top:12px;">
+        <button class="btn primary" type="submit">Save</button>
+        <button class="btn" type="button" onclick="closeAppt()">Cancel</button>
+      </div>
+    </form>
+
+    <form method="post" action="{{ url_for('appointment_delete') }}" style="margin-top:10px;">
+      <input type="hidden" name="appt_id" id="del_appt_id">
+      <button class="btn danger" type="submit">Delete Appointment</button>
+    </form>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<script>
+const modal = document.getElementById("apptModal");
+function closeAppt(){ modal.classList.remove("show"); }
+function openAppt(data){
+  document.getElementById("appt_id").value = data.id || "";
+  document.getElementById("del_appt_id").value = data.id || "";
+  if(data.ro_id) document.getElementById("ro_id").value = data.ro_id;
+  document.getElementById("title").value = data.title || "";
+  document.getElementById("start_at").value = data.start_at || "";
+  document.getElementById("end_at").value = data.end_at || "";
+  document.getElementById("status").value = data.status || "scheduled";
+  document.getElementById("notes").value = data.notes || "";
+  modal.classList.add("show");
+}
+
+async function getEvents(info){
+  const r = await fetch(`/api/calendar/events?start=${encodeURIComponent(info.startStr)}&end=${encodeURIComponent(info.endStr)}`);
+  return await r.json();
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  const el = document.getElementById('calendar');
+  const cal = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    height: 'auto',
+    selectable: true,
+    events: async (info, success, failure)=>{
+      try { success(await getEvents(info)); } catch(e){ failure(e); }
+    },
+    dateClick: (info)=>{
+      const start = info.dateStr + "T09:00";
+      const end = info.dateStr + "T10:00";
+      openAppt({start_at:start, end_at:end, status:"scheduled"});
+    },
+    eventClick: async (info)=>{
+      const id = info.event.id;
+      const r = await fetch(`/api/calendar/event/${encodeURIComponent(id)}`);
+      const data = await r.json();
+      openAppt(data);
+    }
+  });
+  cal.render();
+});
+modal.addEventListener("click", (e)=>{ if(e.target===modal) closeAppt(); });
+</script>
+{% endblock %}

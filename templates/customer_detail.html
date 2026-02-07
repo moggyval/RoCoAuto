@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active = "customers" %}
+{% block content %}
+<div class="headrow">
+  <div>
+    <h2>{{ cust.name }} {% if cust.deleted_at %}<span class="pill danger">archived</span>{% endif %}</h2>
+    <div class="muted">
+      {{ cust.phone or "" }}{% if cust.email %} • {{ cust.email }}{% endif %}
+      {% if cust.address1 %}<br>{{ cust.address1 }}{% if cust.address2 %}, {{ cust.address2 }}{% endif %}{% endif %}
+      {% if cust.city or cust.state or cust.postal_code %}<br>{{ cust.city or "" }} {{ cust.state or "" }} {{ cust.postal_code or "" }}{% endif %}
+    </div>
+  </div>
+  <div class="card mini">
+    <div class="muted">Total paid revenue</div>
+    <div class="big">${{ total_revenue }}</div>
+  </div>
+  <form method="post" action="{{ url_for('customer_delete', customer_id=cust.id) }}">
+    <button class="btn danger" type="submit">Archive customer</button>
+  </form>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <div class="cardtitle">Vehicles</div>
+    <ul class="list">
+      {% for v in vehicles %}
+      <li>{{ v.year or "" }} {{ v.make or "" }} {{ v.model or "" }} {{ v.engine or "" }} {% if v.vin %}<span class="muted">• VIN {{ v.vin }}</span>{% endif %}</li>
+      {% else %}
+      <li class="muted">No vehicles yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="cardtitle">Recent Repair Orders</div>
+    <table class="table">
+      <thead><tr><th>#</th><th>Status</th><th>Opened</th><th></th></tr></thead>
+      <tbody>
+        {% for ro in ros %}
+        <tr>
+          <td>#{{ ro.ro_number }}</td>
+          <td><span class="pill">{{ ro.status }}</span></td>
+          <td>{{ ro.opened_at.strftime("%Y-%m-%d") if ro.opened_at else "" }}</td>
+          <td><a class="link" href="{{ url_for('ro_detail', ro_id=ro.id, tab='estimate') }}">Open</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="muted">No ROs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

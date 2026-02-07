@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Reports</h2>
+
+<div class="grid">
+  <div class="card">
+    <div class="kpi-label">Close Ratio (Global)</div>
+    <div class="kpi">{{ "%.1f"|format(close_ratio) }}%</div>
+    <div class="muted">Sent: {{ sent_count }} | Approved: {{ approved_count }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Total Paid Revenue (All-time)</div>
+    <div class="kpi">${{ total_paid }}</div>
+  </div>
+</div>
+{% endblock %}

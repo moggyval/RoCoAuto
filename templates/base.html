@@ -1,0 +1,44 @@
+{% set active = active or '' %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title or "ShopCRM" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">RD</div>
+      <div>
+        <div class="brandname">ShopCRM</div>
+        <div class="brandsub">Roane Diagnostics</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="{{ 'on' if active=='dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a class="{{ 'on' if active=='ros' else '' }}" href="{{ url_for('ro_list') }}">ROs</a>
+      <a class="btn" href="{{ url_for('ro_new') }}">+ New RO</a>
+      <a class="{{ 'on' if active=='customers' else '' }}" href="{{ url_for('customers') }}">Customers</a>
+      <a class="{{ 'on' if active=='matrices' else '' }}" href="{{ url_for('matrices_settings') }}">Matrices</a>
+      <a class="muted" href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for m in messages %}
+            <div class="flash">{{ m }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
